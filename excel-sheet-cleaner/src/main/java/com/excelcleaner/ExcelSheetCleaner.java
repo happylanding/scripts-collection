@@ -166,11 +166,11 @@ public class ExcelSheetCleaner {
 
     // ========== Excel 处理 (.xls / .xlsx) ==========
     private void handleExcel(Path filePath, String lowerName) throws IOException {
-        boolean isXls = lowerName.endsWith(".xls") && !lowerName.endsWith(".xlsx");
-
+        // 使用 WorkbookFactory 自动检测真实格式（而非依赖扩展名）
+        // 解决 .xls 实际是 XLSX 格式导致 HSSFWorkbook 报错的问题
         Workbook workbook;
         try (FileInputStream fis = new FileInputStream(filePath.toFile())) {
-            workbook = isXls ? new HSSFWorkbook(fis) : new XSSFWorkbook(fis);
+            workbook = WorkbookFactory.create(fis);
         }
 
         int totalSheets = workbook.getNumberOfSheets();
@@ -209,13 +209,7 @@ public class ExcelSheetCleaner {
 
     // ========== CSV 处理 ==========
     private void handleCsv(Path filePath) throws IOException {
-        List<String> lines;
-        try {
-            lines = Files.readAllLines(filePath, StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            // UTF-8 失败，尝试 GBK
-            lines = Files.readAllLines(filePath, Charset.forName("GBK"));
-        }
+        List<String> lines = readCsvLines(filePath);
 
         if (lines.isEmpty()) {
             log("       !! CSV 文件完全为空");
@@ -237,6 +231,70 @@ public class ExcelSheetCleaner {
                 log("       !! CSV 仅有标题行，数据行全为空");
             }
         }
+    }
+
+    /**
+     * 读取 CSV 文件，自动检测编码（BOM + 多编码回退）。
+     * 支持的编码顺序：UTF-8 BOM → UTF-16 LE/BE BOM → UTF-8 → GBK → GB2312
+     */
+    private List<String> readCsvLines(Path filePath) throws IOException {
+        byte[] raw = Files.readAllBytes(filePath);
+        if (raw.length == 0) {
+            return Collections.emptyList();
+        }
+
+        String content;
+        int offset = 0;
+        Charset charset;
+
+        // 1. 检测 BOM
+        if (raw.length >= 3 && raw[0] == (byte) 0xEF && raw[1] == (byte) 0xBB && raw[2] == (byte) 0xBF) {
+            charset = StandardCharsets.UTF_8;
+            offset = 3;
+        } else if (raw.length >= 2 && raw[0] == (byte) 0xFF && raw[1] == (byte) 0xFE) {
+            charset = StandardCharsets.UTF_16LE;
+            offset = 2;
+        } else if (raw.length >= 2 && raw[0] == (byte) 0xFE && raw[1] == (byte) 0xFF) {
+            charset = StandardCharsets.UTF_16BE;
+            offset = 2;
+        } else {
+            // 2. 无 BOM，依次尝试编码
+            charset = null;
+        }
+
+        if (charset != null) {
+            content = new String(raw, offset, raw.length - offset, charset);
+        } else {
+            // 依次尝试 UTF-8, GBK, GB2312
+            content = tryDecode(raw, StandardCharsets.UTF_8,
+                    Charset.forName("GBK"),
+                    Charset.forName("GB2312"));
+        }
+
+        // 按换行符拆分
+        String[] linesArray = content.split("\\r?\\n");
+        return Arrays.asList(linesArray);
+    }
+
+    /**
+     * 依次尝试用多个编码解码字节数组，返回第一个成功的结果
+     */
+    private String tryDecode(byte[] raw, Charset... charsets) throws IOException {
+        for (Charset cs : charsets) {
+            try {
+                String s = new String(raw, cs);
+                // 验证：重新编码回去再解码，确保编解码一致
+                byte[] reEncoded = s.getBytes(cs);
+                String reDecoded = new String(reEncoded, cs);
+                if (s.equals(reDecoded)) {
+                    return s;
+                }
+            } catch (Exception ignored) {
+                // 继续尝试下一个编码
+            }
+        }
+        // 最后兜底：用 ISO-8859-1（不会抛异常，但可能有乱码）
+        return new String(raw, StandardCharsets.ISO_8859_1);
     }
 
     // ========== 核心判断逻辑 ==========
