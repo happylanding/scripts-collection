@@ -6,7 +6,11 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.*;
 import java.net.URISyntaxException;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.time.LocalDateTime;
@@ -277,23 +281,21 @@ public class ExcelSheetCleaner {
     }
 
     /**
-     * 依次尝试用多个编码解码字节数组，返回第一个成功的结果
+     * 依次尝试用多个编码解码字节数组，返回第一个成功的结果。
+     * 使用 CharsetDecoder + REPORT 模式，确保非法字节必定抛异常（而非静默替换为乱码）。
      */
     private String tryDecode(byte[] raw, Charset... charsets) throws IOException {
         for (Charset cs : charsets) {
             try {
-                String s = new String(raw, cs);
-                // 验证：重新编码回去再解码，确保编解码一致
-                byte[] reEncoded = s.getBytes(cs);
-                String reDecoded = new String(reEncoded, cs);
-                if (s.equals(reDecoded)) {
-                    return s;
-                }
-            } catch (Exception ignored) {
-                // 继续尝试下一个编码
+                CharsetDecoder decoder = cs.newDecoder();
+                decoder.onMalformedInput(CodingErrorAction.REPORT);
+                decoder.onUnmappableCharacter(CodingErrorAction.REPORT);
+                return decoder.decode(ByteBuffer.wrap(raw)).toString();
+            } catch (CharacterCodingException e) {
+                // 非法字节，继续尝试下一个编码
             }
         }
-        // 最后兜底：用 ISO-8859-1（不会抛异常，但可能有乱码）
+        // 所有编码都失败，兜底：用 ISO-8859-1（字节→字符一一映射，不会抛异常）
         return new String(raw, StandardCharsets.ISO_8859_1);
     }
 
