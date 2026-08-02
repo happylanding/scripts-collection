@@ -5,10 +5,11 @@
 ## 特性
 
 - **零依赖** — 基于 Windows 原生 PowerShell + COM，无需 Java
-- **轻量级** — 仅 ~11KB，对比 Java 版 18MB
+- **轻量级** — 仅 ~14KB，零外部依赖
 - 自动识别 Excel/WPS，用 COM 接口处理格式
-- CSV 自动检测编码
-- 双击即用
+- CSV 自动检测编码（UTF-8 / GBK / GB2312）
+- 自动检测 .csv 扩展名实际为 XLSX 格式的文件
+- 日志末尾按文件列出明细
 
 ## 快速使用
 
@@ -28,13 +29,7 @@
 - Windows（Win7 及以上）
 - 安装了 Office Excel 或 WPS
 
-## 对比 Java 版
+## 依赖
 
-| 对比项 | PowerShell 版 | Java 版 |
-|--------|:-----------:|:-------:|
-| 体积 | ~11 KB | ~18 MB |
-| 需要 Java | ❌ 不需要 | ✅ JRE 8+ |
-| 需要 Office | ✅ | ❌ |
-| 处理速度 | 较快 | 快 |
-
-如果你的电脑已有 Office/WPS，推荐使用此版本。
+- Windows（Win7 及以上）自带的 PowerShell
+- 安装了 Office Excel 或 WPS（处理 Excel 的电脑通常已安装）

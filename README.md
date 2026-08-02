@@ -8,7 +8,7 @@
 
 | 序号 | 脚本 | 说明 | 语言 |
 |------|------|------|------|
-| 1 | [Excel 空 Sheet 清理工具](./excel-sheet-cleaner/) | 批量删除 Excel 中的空 Sheet，保留格式 | Java |
+| 1 | [Excel 空 Sheet 清理工具](./excel-sheet-cleaner/) | 批量删除 Excel 中的空 Sheet，保留格式，零依赖 | PowerShell |
 
 ---
 
@@ -28,8 +28,7 @@ ScriptsTest/
 ├── .gitignore
 ├── excel-sheet-cleaner/        ← 脚本1
 │   ├── README.md
-│   ├── 使用说明.md
-│   ├── excel-cleaner.jar
+│   ├── ExcelSheetCleaner.ps1
 │   └── 运行.bat
 └── future-script/              ← 脚本2（待添加）
     └── ...
