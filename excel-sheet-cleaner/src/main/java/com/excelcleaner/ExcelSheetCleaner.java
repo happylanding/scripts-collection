@@ -5,6 +5,7 @@ import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import java.io.*;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -58,24 +59,47 @@ public class ExcelSheetCleaner {
     }
 
     /**
-     * 解析目标文件夹：命令行参数 > 当前工作目录
+     * 解析目标文件夹：命令行参数 > JAR 所在目录（非工作目录）
      */
     private static Path resolveTargetDir(String[] args) {
         Path dir;
         if (args.length > 0) {
             dir = Paths.get(args[0]);
         } else {
-            dir = Paths.get("").toAbsolutePath();
+            // 无参数时：获取 JAR 文件所在目录（而非工作目录）
+            dir = getJarDirectory();
         }
 
-        if (!Files.isDirectory(dir)) {
-            printError("路径不存在或不是文件夹: " + dir.toAbsolutePath());
+        if (dir == null || !Files.isDirectory(dir)) {
+            printError("路径不存在或不是文件夹: " + (dir != null ? dir.toAbsolutePath() : "null"));
             printError("用法: java -jar excel-cleaner.jar [文件夹路径]");
-            printError("提示: 不放任何参数时，处理当前目录（双击 JAR 即为当前目录）");
+            printError("提示: 不放任何参数时，自动处理 JAR 所在目录");
             pauseIfDoubleClicked(args);
             return null;
         }
         return dir;
+    }
+
+    /**
+     * 获取 JAR 文件所在的目录。
+     * 无论从哪个目录启动，都返回 JAR 自身所在文件夹。
+     */
+    private static Path getJarDirectory() {
+        try {
+            Path jarPath = Paths.get(ExcelSheetCleaner.class
+                    .getProtectionDomain()
+                    .getCodeSource()
+                    .getLocation()
+                    .toURI());
+            // 如果运行的是 class 文件（非 JAR），则取当前工作目录
+            if (!jarPath.toString().toLowerCase().endsWith(".jar")) {
+                return Paths.get("").toAbsolutePath();
+            }
+            return jarPath.getParent();
+        } catch (URISyntaxException e) {
+            // 降级：使用当前工作目录
+            return Paths.get("").toAbsolutePath();
+        }
     }
 
     /**

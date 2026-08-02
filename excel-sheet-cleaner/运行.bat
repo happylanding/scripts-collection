@@ -1,5 +1,6 @@
 @echo off
+cd /d "%~dp0"
 chcp 65001 >nul
 title Excel空Sheet清理工具
-java -jar "%~dp0excel-cleaner.jar" "%~dp0"
+java -jar "excel-cleaner.jar"
 pause

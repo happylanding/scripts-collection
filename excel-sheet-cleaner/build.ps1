@@ -129,7 +129,8 @@ if (-not (Test-Path $manifestDir)) {
     New-Item -ItemType Directory -Force -Path $manifestDir | Out-Null
 }
 $manifestPath = Join-Path $manifestDir "MANIFEST.MF"
-[System.IO.File]::WriteAllText($manifestPath, $manifest, [System.Text.Encoding]::UTF8)
+$utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText($manifestPath, $manifest, $utf8NoBom)
 
 Push-Location $classesDir
 & jar cfm "$outJar" "$manifestPath" . 2>&1 | Out-Null
@@ -159,3 +160,8 @@ Write-Host "  Command line:" -ForegroundColor Cyan
 Write-Host "    java -jar excel-cleaner.jar" -ForegroundColor White
 Write-Host "    java -jar excel-cleaner.jar D:\MyFolder" -ForegroundColor White
 Write-Host ""
+
+# 同时复制到项目根目录方便分发
+$rootJar = Join-Path $PSScriptRoot "excel-cleaner.jar"
+Copy-Item $outJar $rootJar -Force
+Write-Host "  Copied to: $rootJar" -ForegroundColor DarkGray
